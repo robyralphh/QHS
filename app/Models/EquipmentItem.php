@@ -8,8 +8,9 @@ class EquipmentItem extends Model
 {
     protected $fillable = [
         'equipment_id', 
-        'serial_number', 
         'condition',
+        'status',
+        'isBorrowed',
     ];
 
     public function equipment()

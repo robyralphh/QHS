@@ -14,7 +14,8 @@ import Labinfo from './views/admin/labinfo.jsx';
 import Equipment from './views/admin/equipment.jsx';
 import EquipmentForm from './views/admin/equipmentForm.jsx';
 import Transaction from './views/admin/transaction.jsx';
-
+import EquipmentInfo from './views/admin/equipmentInfo.jsx';
+import ItemForm from './views/admin/ItemForm.jsx';
 //user
 import UserLayout from './Components/UserLayout.jsx';
 import Home from './views/Home.jsx';
@@ -99,7 +100,14 @@ const router = createBrowserRouter([
                 path: 'equipment/:id',
                 element: <EquipmentForm key="EquipmentUpdate" />,
             },
-
+            {
+                path: 'equipment/item/:id',
+                element: <EquipmentInfo key="EquipmentInfo" />,
+            },
+            {
+                path: 'equipment/item/:id/add-item',
+                element: <ItemForm key="ItemCreate" />,
+            },
             {
                 path: 'transactions',
                 element: <Transaction/>,

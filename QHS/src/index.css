@@ -101,7 +101,7 @@ table {
 table > thead > tr > th {
     text-align: left;
     padding: 0.5rem 0.5rem;
-    background-color: #efefef;
+    background-color: white;
 }
 
 table > tbody > tr > td {

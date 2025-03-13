@@ -23,14 +23,19 @@ export default function EquipmentForm() {
     condition: "",
     description: "",
     image: null,
-    laboratory_id: "", // Add laboratory_id to the state
+    laboratory_id: "",
   });
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
-  const [laboratories, setLaboratories] = useState([]); // Initialize as an empty array
+  const [laboratories, setLaboratories] = useState([]);
+
+  // Log the equipment state whenever it changes
+  useEffect(() => {
+    console.log("Equipment state updated:", equipment);
+  }, [equipment]);
 
   // Fetch equipment data
   useEffect(() => {
@@ -40,15 +45,30 @@ export default function EquipmentForm() {
         .get(`/equipment/${id}`)
         .then(({ data }) => {
           setLoading(false);
-          setEquipment(data);
+ 
+          // Extract the nested `data` object from the response
+          const equipmentData = data.data;
+   
+          setEquipment({
+            id: equipmentData.id,
+            name: equipmentData.name,
+            condition: equipmentData.condition,
+            description: equipmentData.description,
+            image: equipmentData.image,
+            laboratory_id: equipmentData.laboratory_id,
+          });
+
+          console.log("Updated equipment state:", equipmentData); // Log the updated state
+
           setPreviewImage(
-            data.image
-              ? `http://192.168.254.219:8000/storage/` + data.image
+            equipmentData.image
+              ? `http://192.168.254.219:8000/storage/${equipmentData.image}`
               : null
           );
         })
-        .catch(() => {
+        .catch((err) => {
           setLoading(false);
+          console.error("Error fetching equipment data:", err); // Log the error
         });
     }
   }, [id]);
@@ -64,12 +84,11 @@ export default function EquipmentForm() {
       .get("/laboratories")
       .then(({ data }) => {
         setLoading(false);
-        // Ensure data.data is an array before setting the state
         if (Array.isArray(data.data)) {
           setLaboratories(data.data);
         } else {
           console.error("Expected an array of laboratories, but got:", data.data);
-          setLaboratories([]); // Set to empty array if data.data is not an array
+          setLaboratories([]);
         }
       })
       .catch(() => {
@@ -92,12 +111,17 @@ export default function EquipmentForm() {
     formData.append("name", equipment.name);
     formData.append("condition", equipment.condition);
     formData.append("description", equipment.description);
-    formData.append("laboratory_id", equipment.laboratory_id); // Append laboratory_id
+    formData.append("laboratory_id", equipment.laboratory_id);
 
     if (selectedImage) {
       formData.append("image", selectedImage);
     }
-
+    if (!equipment.id) {
+      formData.append("_method", "POST");
+    } else {
+      formData.append("_method", "PUT");
+    }
+    
     try {
       if (equipment.id) {
         // Use PUT for updates
@@ -148,8 +172,7 @@ export default function EquipmentForm() {
       </Link>
 
       {/* Form Title */}
-      {equipment.id && <h1>Update Equipment: {equipment.name}</h1>}
-      {!equipment.id && <h1>New Equipment</h1>}
+      {equipment.id ? <h1>Update Equipment: {equipment.name}</h1> : <h1>New Equipment</h1>}
 
       <div className="card animated fadeInDown">
         {loading && <div className="text-center">Loading...</div>}

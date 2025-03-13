@@ -17,6 +17,7 @@ class EquipmentResource extends JsonResource
         return [
             'id' => $this->id,
             'laboratory_id' => $this->laboratory_id,
+            'image' => $this->image,
             'name' => $this->name,
             'condition' => $this->condition,
             'description' => $this->description,
