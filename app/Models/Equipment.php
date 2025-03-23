@@ -10,24 +10,25 @@ class Equipment extends Model
 {
     use HasFactory;
 
-    protected $table = 'equipment';
+    // Specify the table name (optional, if it follows Laravel's naming convention)
+    protected $table = 'equipment'; // Adjust if your table name is different, e.g., 'equipments'
 
+    // Define fillable fields for mass assignment
     protected $fillable = [
         'name',
-        'description',
         'image',
+        'description',
         'condition',
         'laboratory_id',
     ];
 
     public $timestamps = true;
-
     public function categories()
     {
-        return $this->belongsToMany(Category::class);
+        return $this->belongsToMany(Category::class, 'equipment_categories');
     }
 
-    public function items()
+    public function equipmentItem()
     {
         return $this->hasMany(EquipmentItem::class);
     }

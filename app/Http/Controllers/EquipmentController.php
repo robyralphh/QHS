@@ -18,8 +18,9 @@ class EquipmentController extends Controller
      */
     public function index()
     {
+        // Eager load categories for better performance
         return EquipmentResource::collection(
-            Equipment::query()->orderBy('id', 'desc')->get()
+            Equipment::with('categories')->orderBy('id', 'desc')->get()
         );
     }
 
@@ -39,9 +40,9 @@ class EquipmentController extends Controller
         // Create equipment
         $equipment = Equipment::create($data);
 
-        // Attach categories if provided
-        if (isset($data['categories'])) {
-            $equipment->categories()->attach($data['categories']);
+        // Attach multiple categories if provided (expects array of category IDs)
+        if (isset($data['category_ids']) && is_array($data['category_ids'])) {
+            $equipment->categories()->attach($data['category_ids']);
         }
 
         return response(new EquipmentResource($equipment), 201);
@@ -52,6 +53,8 @@ class EquipmentController extends Controller
      */
     public function show(Equipment $equipment)
     {
+        // Eager load categories for the single resource
+        $equipment->load('categories');
         return new EquipmentResource($equipment);
     }
 
@@ -61,27 +64,33 @@ class EquipmentController extends Controller
     public function update(UpdateEquipmentRequest $request, Equipment $equipment)
     {
         $data = $request->validated();
+
+        // Handle image upload
         if ($request->hasFile('image')) {
             $storage = Storage::disk('public');
-    
             if ($equipment->image) {
                 $storage->delete($equipment->image);
             }
-
             $imageName = Str::random(32) . "." . $request->image->getClientOriginalExtension();
             $data['image'] = $request->file('image')->storeAs('itemImage', $imageName, 'public');
         } else {
             unset($data['image']);
         }
+
+        // Update equipment
         $equipment->update($data);
-        if (isset($data['categories'])) {
-            $equipment->categories()->sync($data['categories']);
+
+        // Sync categories if provided (expects array of category IDs)
+        if (isset($data['category_ids']) && is_array($data['category_ids'])) {
+            $equipment->categories()->sync($data['category_ids']);
         }
 
         return new EquipmentResource($equipment);
     }
 
-
+    /**
+     * Remove the specified resource from storage.
+     */
     public function destroy(Equipment $equipment)
     {
         // Delete associated image if it exists
@@ -89,6 +98,7 @@ class EquipmentController extends Controller
             Storage::disk('public')->delete($equipment->image);
         }
 
+        // This will automatically remove pivot table entries due to onDelete('cascade')
         $equipment->delete();
 
         return response('', 204);

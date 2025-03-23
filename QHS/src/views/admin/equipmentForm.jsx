@@ -10,9 +10,10 @@ import {
   FormLabel,
   FormControl,
   InputLabel,
-  Select,
+  Select as MuiSelect,
   MenuItem,
 } from "@mui/material";
+import Select from "react-select"; // Import react-select
 
 export default function EquipmentForm() {
   const { id } = useParams();
@@ -24,6 +25,7 @@ export default function EquipmentForm() {
     description: "",
     image: null,
     laboratory_id: "",
+    category_ids: [], // Changed from 'categories' to 'category_ids' to match backend
   });
 
   const [loading, setLoading] = useState(false);
@@ -31,11 +33,8 @@ export default function EquipmentForm() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [laboratories, setLaboratories] = useState([]);
-
-  // Log the equipment state whenever it changes
-  useEffect(() => {
-    console.log("Equipment state updated:", equipment);
-  }, [equipment]);
+  const [categories, setCategories] = useState([]); // State for all categories
+  const [selectedCategories, setSelectedCategories] = useState([]); // State for selected categories
 
   // Fetch equipment data
   useEffect(() => {
@@ -45,10 +44,8 @@ export default function EquipmentForm() {
         .get(`/equipment/${id}`)
         .then(({ data }) => {
           setLoading(false);
- 
-          // Extract the nested `data` object from the response
           const equipmentData = data.data;
-   
+
           setEquipment({
             id: equipmentData.id,
             name: equipmentData.name,
@@ -56,9 +53,19 @@ export default function EquipmentForm() {
             description: equipmentData.description,
             image: equipmentData.image,
             laboratory_id: equipmentData.laboratory_id,
+            category_ids: equipmentData.categories
+              ? equipmentData.categories.map((cat) => cat.id)
+              : [], // Extract category IDs
           });
 
-          console.log("Updated equipment state:", equipmentData); // Log the updated state
+          // Set selected categories for react-select
+          if (equipmentData.categories) {
+            const selected = equipmentData.categories.map((cat) => ({
+              value: cat.id,
+              label: cat.name,
+            }));
+            setSelectedCategories(selected);
+          }
 
           setPreviewImage(
             equipmentData.image
@@ -68,14 +75,15 @@ export default function EquipmentForm() {
         })
         .catch((err) => {
           setLoading(false);
-          console.error("Error fetching equipment data:", err); // Log the error
+          console.error("Error fetching equipment data:", err);
         });
     }
   }, [id]);
 
-  // Fetch available laboratories
+  // Fetch available laboratories and categories
   useEffect(() => {
     getLaboratory();
+    getCategories();
   }, []);
 
   const getLaboratory = () => {
@@ -96,12 +104,33 @@ export default function EquipmentForm() {
       });
   };
 
+  const getCategories = () => {
+    axiosClient
+      .get("/categories")
+      .then(({ data }) => {
+        setCategories(data.data);
+      })
+      .catch((error) => {
+        console.error("Error fetching categories:", error);
+      });
+  };
+
   const handleImageSelection = (ev) => {
     const file = ev.target.files[0];
     if (file) {
       setSelectedImage(file);
       setPreviewImage(URL.createObjectURL(file));
     }
+  };
+
+  const handleCategoryChange = (selectedOptions) => {
+    setSelectedCategories(selectedOptions);
+    // Update equipment state with selected category IDs
+    const categoryIds = selectedOptions.map((option) => option.value);
+    setEquipment((prev) => ({
+      ...prev,
+      category_ids: categoryIds, // Store as array of IDs
+    }));
   };
 
   const onSubmit = async (ev) => {
@@ -113,15 +142,23 @@ export default function EquipmentForm() {
     formData.append("description", equipment.description);
     formData.append("laboratory_id", equipment.laboratory_id);
 
+    // Append each category ID individually to FormData
+    if (equipment.category_ids && equipment.category_ids.length > 0) {
+      equipment.category_ids.forEach((id) => {
+        formData.append("category_ids[]", id); // Use array notation for multiple values
+      });
+    }
+
     if (selectedImage) {
       formData.append("image", selectedImage);
     }
+
     if (!equipment.id) {
       formData.append("_method", "POST");
     } else {
       formData.append("_method", "PUT");
     }
-    
+
     try {
       if (equipment.id) {
         // Use PUT for updates
@@ -221,7 +258,7 @@ export default function EquipmentForm() {
             {/* Laboratory Select Field */}
             <FormControl fullWidth>
               <InputLabel id="laboratory-label">Laboratory</InputLabel>
-              <Select
+              <MuiSelect
                 labelId="laboratory-label"
                 value={equipment.laboratory_id}
                 onChange={(ev) =>
@@ -234,7 +271,21 @@ export default function EquipmentForm() {
                     {laboratory.name}
                   </MenuItem>
                 ))}
-              </Select>
+              </MuiSelect>
+            </FormControl>
+
+            {/* Categories Multi-Select Field */}
+            <FormControl fullWidth sx={{ mt: 2 }}>
+              <Select
+                isMulti
+                options={categories.map((cat) => ({
+                  value: cat.id,
+                  label: cat.name,
+                }))}
+                value={selectedCategories}
+                onChange={handleCategoryChange}
+                placeholder="Select categories"
+              />
             </FormControl>
 
             {/* Image Upload */}

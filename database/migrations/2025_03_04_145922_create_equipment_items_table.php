@@ -13,10 +13,12 @@ return new class extends Migration
     {
         Schema::create('equipment_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('equipment_id')->constrained()->onDelete('cascade');
-            $table->string('serial_number')->unique();
+            $table->unsignedBigInteger('equipment_id');
             $table->string('condition');
+            $table->string('isBorrowed');
             $table->timestamps();
+            // Foreign key constraint
+            $table->foreign('equipment_id')->references('id')->on('equipment')->onDelete('cascade');
         });
     }
 

@@ -21,10 +21,10 @@ class EquipmentResource extends JsonResource
             'name' => $this->name,
             'condition' => $this->condition,
             'description' => $this->description,
-            'categories' => CategoryResource::collection($this->whenLoaded('categories')),
-            'items' => EquipmentItemResource::collection($this->whenLoaded('items')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
+            // Include related categories
+            'categories' => CategoryResource::collection($this->whenLoaded('categories')),
         ];
     }
 }

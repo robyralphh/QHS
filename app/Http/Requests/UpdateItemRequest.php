@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class UpdateEquipmentRequest extends FormRequest
+class UpdateItemRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -21,14 +21,12 @@ class UpdateEquipmentRequest extends FormRequest
      */
     public function rules(): array
     {
+    
         return [
-            'name' => 'sometimes|string|max:255',
-            'image' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'description' => 'sometimes|string|max:255',
+            'equipment_id' => 'sometimes|exists:equipment,id',
             'condition' => 'sometimes|string|max:255',
-            'laboratory_id' => 'sometimes|int',
-            'category_ids' => 'sometimes|array', // Array of category IDs
-            'category_ids.*' => 'integer|exists:categories,id', // Each ID must exist in categories table
+            'isBorrowed' => 'sometimes|string|max:255|in:true,false',
         ];
+    
     }
 }

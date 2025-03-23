@@ -19,6 +19,8 @@ class CategoryResource extends JsonResource
             'name' => $this->name,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
+            // Optional: Include related equipment if needed
+            'equipment' => EquipmentResource::collection($this->whenLoaded('equipment')),
         ];
     }
 }

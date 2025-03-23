@@ -15,10 +15,10 @@ class EquipmentItemResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'equipment_id' => $this->equipment_id,
-            'serial_number' => $this->serial_number,
+            'id' => $this-> id,
+            'equipment_id' => $this->equipment_id,     
             'condition' => $this->condition,
+            'isBorrowed' => $this->isBorrowed,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

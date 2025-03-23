@@ -6,7 +6,7 @@ import GuestLayout from './Components/GuestLayout.jsx';
 import DefaultLayout from './Components/DefaultLayout.jsx';
 //admin
 import Users from './views/admin/users.jsx';
-import UserForm from './views/admin/UserForm.jsx';
+
 import Adashboard from './views/admin/adminDashboard.jsx';
 import Laboratories from './views/admin/laboratories.jsx';
 import LaboratoryForm from './views/admin/LaboratoryForm.jsx';
@@ -16,6 +16,7 @@ import EquipmentForm from './views/admin/equipmentForm.jsx';
 import Transaction from './views/admin/transaction.jsx';
 import EquipmentInfo from './views/admin/equipmentInfo.jsx';
 import ItemForm from './views/admin/ItemForm.jsx';
+import EquipmentCategory from './views/admin/category.jsx';
 //user
 import UserLayout from './Components/UserLayout.jsx';
 import Home from './views/Home.jsx';
@@ -64,14 +65,7 @@ const router = createBrowserRouter([
                 path: 'users',
                 element: <Users />,
             },
-            {
-                path: 'users/new',
-                element: <UserForm key="userCreate" />,
-            },
-            {
-                path: 'users/:id',
-                element: <UserForm key="userUpdate" />,
-            },
+           
             {
                 path: 'lab',
                 element: <Laboratories />,
@@ -101,16 +95,24 @@ const router = createBrowserRouter([
                 element: <EquipmentForm key="EquipmentUpdate" />,
             },
             {
-                path: 'equipment/item/:id',
+                path: 'equipment/info/:id',
                 element: <EquipmentInfo key="EquipmentInfo" />,
             },
             {
-                path: 'equipment/item/:id/add-item',
+                path: 'equipment/info/:equipmentID/add-item',
                 element: <ItemForm key="ItemCreate" />,
+            },
+            {
+                path: 'equipment/info/:equipmentID/edit-item/:id',
+                element: <ItemForm key="ItemUpdate" />,
             },
             {
                 path: 'transactions',
                 element: <Transaction/>,
+            },
+            {
+                path: 'category',
+                element: <EquipmentCategory/>,
             },
         ],
     },

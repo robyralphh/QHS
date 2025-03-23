@@ -1,12 +1,52 @@
 import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useStateContext } from "../Context/ContextProvider";
 import axiosClient from "../axiosClient";
-import { useEffect, useState } from "react"; 
+import { useEffect, useState, useMemo, useCallback } from "react"; 
 import * as React from 'react';
 import * as Mui from '../assets/muiImports';
 import { Avatar } from "@mui/material";
 import { getInitials } from "../utils";
 
+// Clock Component
+const Clock = () => {
+  const [currentTime, setCurrentTime] = useState("");
+  const [currentDate, setCurrentDate] = useState("");
+
+  // Function to update the clock and date
+  const updateClock = useCallback(() => {
+    const now = new Date();
+    const hours = now.getHours() % 12 || 12; // Convert to 12-hour format
+    const minutes = now.getMinutes().toString().padStart(2, "0");
+    const seconds = now.getSeconds().toString().padStart(2, "0");
+    const ampm = now.getHours() >= 12 ? "PM" : "AM";
+    const timeString = `${hours}:${minutes}:${seconds} ${ampm}`;
+    const dateString = now.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    setCurrentTime(timeString);
+    setCurrentDate(dateString);
+  }, []);
+
+  // Update the clock every second
+  useEffect(() => {
+    const interval = setInterval(updateClock, 1000);
+    return () => clearInterval(interval); // Cleanup interval on unmount
+  }, [updateClock]);
+
+  return (
+    <>
+      <Mui.Typography variant="body1" sx={{ marginRight: 2 }}>
+        {currentTime}
+      </Mui.Typography>
+      <Mui.Typography variant="body1">
+        {currentDate}
+      </Mui.Typography>
+    </>
+  );
+};
 
 export default function DefaultLayout() {
   const { user, token, setUser, setToken } = useStateContext();
@@ -46,17 +86,15 @@ export default function DefaultLayout() {
     const getTitleFromPath = (pathname) => {
       if (pathname.startsWith("/admin/users")) {
         return "User Management";
-      }else if (pathname.startsWith("/admin/lab")) {
+      } else if (pathname.startsWith("/admin/lab")) {
         return "Laboratories";
-      }else if (pathname.startsWith("/admin/equipment")) {
+      } else if (pathname.startsWith("/admin/equipment")) {
         return "Equipments and Items";
-      }else if (pathname.startsWith("/admin/transactions")) {
+      } else if (pathname.startsWith("/admin/transactions")) {
         return "Transactions";
-      }
-      else{
+      } else {
         return "Dashboard";
       }
-     
     };
     setTitle(getTitleFromPath(location.pathname)); 
   }, [location.pathname]); 
@@ -64,7 +102,6 @@ export default function DefaultLayout() {
   if (!token) {
     return <Navigate to='../auth' />;
   }
-
 
   // Styled Components
   const Main = Mui.styled('main', { shouldForwardProp: (prop) => prop !== 'open' })(
@@ -111,8 +148,6 @@ export default function DefaultLayout() {
     justifyContent: 'flex-end',
   }));
 
-  
-
   return (
     <Mui.Box sx={{ display: 'flex' }}>
       <Mui.CssBaseline />
@@ -125,14 +160,15 @@ export default function DefaultLayout() {
             edge="start"
             sx={{          
               mr: 1, ...(open && { display: 'none' }) 
-              
-          }}
+            }}
           >
             <Mui.MenuIcon />
           </Mui.IconButton>
-          <Mui.Typography variant="h6" noWrap component="div">
+          <Mui.Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             {title} {/* Use state for title */}
           </Mui.Typography>
+          {/* Clock and Date */}
+          <Clock />
         </Mui.Toolbar>
       </AppBar>
       <Mui.Drawer
@@ -149,12 +185,12 @@ export default function DefaultLayout() {
         open={open}
       >
         <DrawerHeader>
-        <Avatar
-                    src={ 'http://192.168.254.219:8000/storage/'+user.avatar}
-                    sx={{ width: 44, height: 44, fontSize: 14 , m:'auto'}}
-                  >
-                    {!user.avatar && getInitials(user.name)}
-                  </Avatar>
+          <Avatar
+            src={ 'http://192.168.254.219:8000/storage/' + user.avatar}
+            sx={{ width: 44, height: 44, fontSize: 14, m: 'auto' }}
+          >
+            {!user.avatar && getInitials(user.name)}
+          </Avatar>
           {user.name}
           <Mui.IconButton onClick={handleDrawerClose}>
             {theme.direction === 'ltr' ? <Mui.ChevronLeftIcon /> : <Mui.ChevronRightIcon />}
@@ -162,7 +198,7 @@ export default function DefaultLayout() {
         </DrawerHeader>
         <Mui.Divider />
         <Mui.List>
-        <Mui.ListItem>
+          <Mui.ListItem>
             <Mui.Typography variant="body" sx={{ color: 'gray'}}>
               Primary 
             </Mui.Typography>

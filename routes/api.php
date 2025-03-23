@@ -4,7 +4,9 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\LaboratoryController;
 use App\http\Controllers\EquipmentController;
+use App\http\Controllers\EquipmentItemController;
 use App\Http\Controllers\CategoryController;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -22,5 +24,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('/users', UserController::class);
     Route::apiResource('/laboratories', LaboratoryController::class);
     Route::apiResource('/equipment', EquipmentController::class);
-   
+    Route::apiResource('/item', EquipmentItemController::class);
+    Route::apiResource('/categories', CategoryController::class);
 });
+
+
+
