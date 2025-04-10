@@ -7,16 +7,12 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class EquipmentItemResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this-> id,
+            'id' => $this->id,
             'equipment_id' => $this->equipment_id,     
+            'unit_id' => $this->unit_id, // Add unit_id
             'condition' => $this->condition,
             'isBorrowed' => $this->isBorrowed,
             'created_at' => $this->created_at,

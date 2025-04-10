@@ -6,20 +6,20 @@ import Button from "@mui/material/Button";
 import { FormControlLabel, Radio, RadioGroup, FormLabel } from "@mui/material";
 
 export default function ItemForm() {
-  const { id, equipmentID } = useParams(); // Extract id and equipmentID from the URL
+  const { id, equipmentID } = useParams();
   const navigate = useNavigate();
 
   const [item, setItem] = useState({
     id: null,
-    equipment_id: equipmentID || "", // Use equipmentID from URL
+    equipment_id: equipmentID || "",
+    unit_id: "",
     condition: "",
-    isBorrowed: "false", // Default to "false" as a string
+    isBorrowed: "false",
   });
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState(null);
 
-  // Fetch item data if editing
   useEffect(() => {
     if (id) {
       setLoading(true);
@@ -28,17 +28,24 @@ export default function ItemForm() {
         .then(({ data }) => {
           setLoading(false);
           const itemData = data.data;
+          if (!itemData) {
+            console.error("Item data not found in response:", data);
+            setErrors({ general: ["Item not found."] });
+            return;
+          }
           console.log("API Response:", data);
           setItem({
-            id: itemData.id, // Ensure the ID is set
+            id: itemData.id,
             equipment_id: itemData.equipment_id,
+            unit_id: itemData.unit_id || "",
             condition: itemData.condition,
-            isBorrowed: itemData.isBorrowed?.toString() || "false", // Ensure isBorrowed is a string
+            isBorrowed: itemData.isBorrowed?.toString() || "false",
           });
         })
         .catch((err) => {
           setLoading(false);
           console.error("Error fetching item data:", err);
+          setErrors({ general: ["Failed to fetch item data."] });
         });
     }
   }, [id]);
@@ -46,21 +53,21 @@ export default function ItemForm() {
   const onSubmit = async (ev) => {
     ev.preventDefault();
     setLoading(true);
-    setErrors(null); // Reset errors before submission
+    setErrors(null);
 
     const payload = {
       equipment_id: item.equipment_id,
       condition: item.condition,
-      isBorrowed: item.isBorrowed, // Ensure isBorrowed is a string
+      isBorrowed: item.isBorrowed,
     };
 
     try {
       if (item.id) {
-        // Use PUT for updates
         await axiosClient.put(`/item/${item.id}`, payload);
       } else {
-        // Use POST for creating a new item
-        await axiosClient.post("/item", payload);
+        const response = await axiosClient.post("/item", payload);
+        const newUnitId = response?.data?.data?.unit_id || "";
+        setItem({ ...item, unit_id: newUnitId });
       }
       navigate(`/admin/equipment/info/${item.equipment_id}`);
     } catch (err) {
@@ -78,7 +85,6 @@ export default function ItemForm() {
 
   return (
     <>
-      {/* Back Button */}
       <Link to={`/admin/equipment/info/${equipmentID}`}>
         <Button
           variant="outlined"
@@ -97,7 +103,6 @@ export default function ItemForm() {
         </Button>
       </Link>
 
-      {/* Form Title */}
       {item.id ? <h1>Update Item</h1> : <h1>New Item</h1>}
 
       <div className="card animated fadeInDown">
@@ -111,44 +116,53 @@ export default function ItemForm() {
         )}
         {!loading && (
           <form onSubmit={onSubmit}>
-            {/* Equipment ID (Hidden Input) */}
             <input
               type="hidden"
               name="equipment_id"
               value={item.equipment_id}
-              readOnly // Ensure the field is read-only
+              readOnly
             />
 
-            {/* Condition Field as Radio Buttons */}
+            <div style={{ marginBottom: "20px" }}>
+              <FormLabel>Unit ID</FormLabel>
+              <input
+                type="text"
+                value={item.unit_id || "Will be generated on save"}
+                readOnly
+                disabled
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  borderRadius: "4px",
+                  border: "1px solid #ccc",
+                  backgroundColor: "#f5f5f5",
+                }}
+              />
+            </div>
+
             <FormLabel id="condition-radio-buttons-group-label">Condition</FormLabel>
             <RadioGroup
               aria-labelledby="condition-radio-buttons-group-label"
               name="condition-radio-buttons-group"
               value={item.condition}
-              onChange={(ev) =>
-                setItem({ ...item, condition: ev.target.value })
-              }
+              onChange={(ev) => setItem({ ...item, condition: ev.target.value })}
             >
               <FormControlLabel value="New" control={<Radio />} label="New" />
               <FormControlLabel value="Used" control={<Radio />} label="Used" />
               <FormControlLabel value="Damaged" control={<Radio />} label="Damaged" />
             </RadioGroup>
 
-            {/* Borrowed Status Field as Radio Buttons */}
             <FormLabel id="borrowed-radio-buttons-group-label">Borrowed Status</FormLabel>
             <RadioGroup
               aria-labelledby="borrowed-radio-buttons-group-label"
               name="borrowed-radio-buttons-group"
-              value={item.isBorrowed} // Ensure value is a string
-              onChange={(ev) =>
-                setItem({ ...item, isBorrowed: ev.target.value }) // Set as string
-              }
+              value={item.isBorrowed}
+              onChange={(ev) => setItem({ ...item, isBorrowed: ev.target.value })}
             >
               <FormControlLabel value="true" control={<Radio />} label="Yes" />
               <FormControlLabel value="false" control={<Radio />} label="No" />
             </RadioGroup>
 
-            {/* Save Button */}
             <button className="btn" disabled={loading}>
               {loading ? "Saving..." : "Save"}
             </button>

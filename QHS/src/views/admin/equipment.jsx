@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import * as React from "react";
 import { Link } from "react-router-dom";
 import axiosClient from "../../axiosClient";
 import moment from "moment";
-import Select from "react-select"; // Import react-select for multi-select
+import Select from "react-select";
 
 // UI Components
 import TableCell, { tableCellClasses } from '@mui/material/TableCell';
@@ -34,38 +34,68 @@ import { getInitials } from "../../utils";
 export default function Equipment() {
   const [equipment, setEquipment] = useState([]);
   const [filteredEquipment, setFilteredEquipment] = useState([]);
-  const [laboratories, setLaboratories] = useState([]); // State for laboratories
-  const [categories, setCategories] = useState([]); // State for categories
+  const [laboratories, setLaboratories] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null); // Add error state for better UX
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [open, setOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [query, setQuery] = useState("");
-  const [selectedLaboratories, setSelectedLaboratories] = useState([]); // State for selected laboratories
-  const [selectedCategories, setSelectedCategories] = useState([]); // State for selected categories
-  const [viewMode, setViewMode] = useState("table"); // State for view mode (table or card)
+  const [selectedFilters, setSelectedFilters] = useState([]);
+  const [viewMode, setViewMode] = useState("table");
 
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const isExtraSmallScreen = useMediaQuery(theme.breakpoints.down('xs'));
 
+  const selectRef = useRef(null);
+
   useEffect(() => {
     getEquipment();
     getLaboratories();
-    getCategories(); // Fetch categories
+    getCategories();
   }, []);
 
   const getEquipment = () => {
     setLoading(true);
+    setError(null); // Reset error state
+    // Fetch equipment data
     axiosClient
       .get("/equipment")
       .then(({ data }) => {
-        setLoading(false);
-        setEquipment(data.data);
-        setFilteredEquipment(data.data);
+        const equipmentData = data.data;
+        // Fetch all items to calculate quantity
+        axiosClient
+          .get("/item") // Assuming the endpoint to fetch items is /item
+          .then(({ data: itemsData }) => {
+            const items = itemsData.data;
+            // Calculate quantity for each equipment
+            const updatedEquipment = equipmentData.map((equip) => {
+              const relatedItems = items.filter((i) => i.equipment_id === equip.id);
+              const availableItems = relatedItems.filter((i) => i.isBorrowed === "false");
+              
+              return {
+                ...equip,
+                quantity: availableItems.length, // Set the quantity based on available items
+              };
+            });
+            setEquipment(updatedEquipment);
+            setFilteredEquipment(updatedEquipment);
+            setLoading(false);
+          })
+          .catch((error) => {
+            console.error("Error fetching items:", error);
+            setError("Failed to load equipment items. Displaying equipment without quantities.");
+            setEquipment(equipmentData);
+            setFilteredEquipment(equipmentData);
+            setLoading(false);
+          });
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error("Error fetching equipment:", error);
+        setError("Failed to load equipment. Please try again later.");
         setLoading(false);
       });
   };
@@ -146,19 +176,28 @@ export default function Equipment() {
 
   const searchData = (data) => {
     return data.filter((item) => {
-      // Filter by name, description, condition, or ID
-      const matchesQuery =
-        item.name.toLowerCase().includes(query.toLowerCase()) ||
-        item.description.toLowerCase().includes(query.toLowerCase()) ||
-        item.condition.toLowerCase().includes(query.toLowerCase()) ||
-        item.id.toString().includes(query);
+      const searchTerms = [
+        ...selectedFilters
+          .filter((filter) => filter.type === "search")
+          .map((filter) => filter.value),
+        query,
+      ].filter(Boolean);
 
-      // Filter by selected laboratories
+      const matchesQuery =
+        searchTerms.length === 0 ||
+        searchTerms.some((term) =>
+          item.name.toLowerCase().includes(term.toLowerCase()) ||
+          item.description.toLowerCase().includes(term.toLowerCase()) ||
+          item.condition.toLowerCase().includes(term.toLowerCase()) ||
+          item.id.toString().includes(term)
+        );
+
+      const selectedLaboratories = selectedFilters.filter((filter) => filter.type === "laboratory");
       const matchesLaboratory =
         selectedLaboratories.length === 0 ||
         selectedLaboratories.some((lab) => lab.value === item.laboratory_id);
 
-      // Filter by selected categories
+      const selectedCategories = selectedFilters.filter((filter) => filter.type === "category");
       const matchesCategory =
         selectedCategories.length === 0 ||
         (item.categories &&
@@ -176,17 +215,77 @@ export default function Equipment() {
     }
   };
 
+  const handleInputChange = (inputValue) => {
+    setQuery(inputValue);
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === "Enter" && query.trim()) {
+      event.preventDefault();
+      const newSearchTag = {
+        value: query.trim(),
+        label: `Search: ${query.trim()}`,
+        type: "search",
+      };
+      const updatedFilters = [...selectedFilters, newSearchTag];
+      setSelectedFilters(updatedFilters);
+      setQuery("");
+      if (selectRef.current) {
+        selectRef.current.focus();
+      }
+    }
+  };
+
+  const handleSelectionChange = (selectedOptions) => {
+    setSelectedFilters(selectedOptions || []);
+  };
+
+  const groupedOptions = [
+    {
+      label: "Laboratories",
+      options: laboratories.map((lab) => ({
+        value: lab.id,
+        label: lab.name,
+        type: "laboratory",
+      })),
+    },
+    {
+      label: "Categories",
+      options: categories.map((cat) => ({
+        value: cat.id,
+        label: cat.name,
+        type: "category",
+      })),
+    },
+  ];
+
+  const getCategoryOptions = (itemCategories) => {
+    if (!itemCategories || itemCategories.length === 0) return [];
+    return itemCategories.map((cat) => ({
+      value: cat.id,
+      label: cat.name,
+      type: "category",
+    }));
+  };
+
+  const getQuantityColor = (quantity) => {
+    if (quantity < 2) return "red";
+    if (quantity >= 3 && quantity <= 6) return "orange";
+    if (quantity > 7) return "green";
+    return "inherit";
+  };
+
   return (
     <div>
-      {/* First Section (Search Bar) - Using Grid with Flex */}
       <Paper
         sx={{
           backgroundColor: 'white',
           padding: { xs: 1, sm: 2 },
+          zIndex: 1200,
+          position: 'relative',
         }}
       >
         <Grid container spacing={2} alignItems="center">
-          {/* Title and Description */}
           <Grid item xs={12} sm={4} md={3}>
             <Typography
               variant="h6"
@@ -209,64 +308,73 @@ export default function Equipment() {
             </Typography>
           </Grid>
 
-          {/* Search Bar and Filters */}
           <Grid item xs={12} sm={4} md={6}>
             <Box
               sx={{
                 display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' }, // Stack vertically on extra-small screens
+                flexDirection: { xs: 'column', sm: 'row' },
                 gap: { xs: 1, sm: 2 },
                 flexWrap: 'wrap',
                 justifyContent: 'center',
                 alignItems: 'center',
               }}
             >
-              <input
-                type="text"
-                placeholder="Search Equipment..."
-                onChange={(e) => setQuery(e.target.value)}
-                style={{
-                  width: { xs: '100%', sm: '200px' }, // Full width on extra-small screens
-                  padding: { xs: '6px', sm: '8px' },
-                  boxSizing: 'border-box',
-                }}
-              />
               <Select
+                ref={selectRef}
                 isMulti
-                options={laboratories.map((lab) => ({
-                  value: lab.id,
-                  label: lab.name,
-                }))}
-                value={selectedLaboratories}
-                onChange={setSelectedLaboratories}
-                placeholder="Filter by Laboratory"
+                options={groupedOptions}
+                value={selectedFilters}
+                onChange={handleSelectionChange}
+                onInputChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                inputValue={query}
+                placeholder="Search or filter by laboratory/category..."
                 styles={{
                   container: (base) => ({
                     ...base,
-                    width: isSmallScreen ? '100%' : '200px', // Full width on small screens
+                    width: isSmallScreen ? '100%' : '400px',
+                    zIndex: 1300,
                   }),
-                }}
-              />
-              <Select
-                isMulti
-                options={categories.map((cat) => ({
-                  value: cat.id,
-                  label: cat.name,
-                }))}
-                value={selectedCategories}
-                onChange={setSelectedCategories}
-                placeholder="Filter by Category"
-                styles={{
-                  container: (base) => ({
+                  menu: (base) => ({
                     ...base,
-                    width: isSmallScreen ? '100%' : '200px', // Full width on small screens
+                    zIndex: 1300,
+                  }),
+                  control: (base, state) => ({
+                    ...base,
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    boxShadow: state.isFocused ? '0 0 5px rgba(128, 0, 0, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.1)',
+                    borderColor: state.isFocused ? 'maroon' : '#ccc',
+                    fontSize: isSmallScreen ? '0.9rem' : '1rem',
+                    transition: 'border-color 0.3s, box-shadow 0.3s',
+                    backgroundColor: '#fff',
+                    '&:hover': {
+                      borderColor: state.isFocused ? 'maroon' : '#ccc',
+                    },
+                  }),
+                  multiValue: (base, state) => ({
+                    ...base,
+                    backgroundColor:
+                      state.data.type === "search"
+                        ? "#f0f0f0"
+                        : state.data.type === "laboratory"
+                        ? "#e0f7fa"
+                        : "#ffebee",
+                  }),
+                  multiValueLabel: (base, state) => ({
+                    ...base,
+                    color:
+                      state.data.type === "search"
+                        ? "#333"
+                        : state.data.type === "laboratory"
+                        ? "#00796b"
+                        : "#c62828",
                   }),
                 }}
               />
             </Box>
           </Grid>
 
-          {/* Add New Equipment Button */}
           <Grid item xs={12} sm={4} md={3} sx={{ textAlign: { xs: 'center', sm: 'right' } }}>
             <Link to="new/">
               <Button
@@ -286,7 +394,6 @@ export default function Equipment() {
         </Grid>
       </Paper>
 
-      {/* No Spacer Needed Since Header is Not Fixed */}
       <Box sx={{ pt: 1, pb: 1, display: 'flex', justifyContent: 'flex-end' }}>
         <ToggleButtonGroup
           value={viewMode}
@@ -302,6 +409,12 @@ export default function Equipment() {
         </ToggleButtonGroup>
       </Box>
 
+      {error && (
+        <Box sx={{ p: 2, textAlign: 'center' }}>
+          <Typography color="error">{error}</Typography>
+        </Box>
+      )}
+
       {viewMode === "table" ? (
         // Table View
         <TableContainer
@@ -309,7 +422,7 @@ export default function Equipment() {
           elevation={3}
           sx={{
             maxHeight: { xs: 'calc(100vh - 200px)', sm: 'calc(93vh - 200px)' },
-            overflowX: 'auto', // Enable horizontal scrolling on small screens
+            overflowX: 'auto',
           }}
         >
           <Table aria-label="sticky table" stickyHeader>
@@ -319,6 +432,7 @@ export default function Equipment() {
                 <TableCell sx={{ minWidth: 70 }}>Image</TableCell>
                 <TableCell sx={{ minWidth: 120 }}>Name</TableCell>
                 <TableCell sx={{ minWidth: 100 }}>Condition</TableCell>
+                <TableCell sx={{ minWidth: 100 }}>Quantity</TableCell>
                 <TableCell sx={{ minWidth: 150 }}>Description</TableCell>
                 <TableCell sx={{ minWidth: 120 }}>Laboratory</TableCell>
                 <TableCell sx={{ minWidth: 120 }}>Categories</TableCell>
@@ -328,7 +442,7 @@ export default function Equipment() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center">
+                  <TableCell colSpan={9} align="center">
                     Fetching Data ...
                   </TableCell>
                 </TableRow>
@@ -356,9 +470,53 @@ export default function Equipment() {
                     </TableCell>
                     <TableCell>{item.name.toUpperCase()}</TableCell>
                     <TableCell>{item.condition}</TableCell>
+                    <TableCell sx={{ color: getQuantityColor(item.quantity || 0) }}>
+                      {item.quantity || 0}
+                    </TableCell>
                     <TableCell>{item.description}</TableCell>
                     <TableCell>{getLaboratoryName(item.laboratory_id)}</TableCell>
-                    <TableCell>{getCategoryNames(item.categories)}</TableCell>
+                    <TableCell>
+                      {(!item.categories || item.categories.length === 0) ? (
+                        "No Categories"
+                      ) : (
+                        <Select
+                          isMulti
+                          isDisabled={true}
+                          options={categories.map((cat) => ({
+                            value: cat.id,
+                            label: cat.name,
+                            type: "category",
+                          }))}
+                          value={getCategoryOptions(item.categories)}
+                          styles={{
+                            control: (base) => ({
+                              ...base,
+                              border: 'none',
+                              boxShadow: 'none',
+                              backgroundColor: 'transparent',
+                              minHeight: 'auto',
+                              fontSize: isSmallScreen ? '0.9rem' : '1rem',
+                            }),
+                            multiValue: (base) => ({
+                              ...base,
+                              backgroundColor: '#ffebee',
+                            }),
+                            multiValueLabel: (base) => ({
+                              ...base,
+                              color: '#c62828',
+                            }),
+                            multiValueRemove: (base) => ({
+                              ...base,
+                              display: 'none',
+                            }),
+                            indicatorsContainer: (base) => ({
+                              ...base,
+                              display: 'none',
+                            }),
+                          }}
+                        />
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: { xs: 0.2, sm: 0.5 } }}>
                         <Link to={'' + item.id}>
@@ -425,6 +583,15 @@ export default function Equipment() {
                   <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                     <strong>Condition:</strong> {item.condition}
                   </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      color: getQuantityColor(item.quantity || 0),
+                    }}
+                  >
+                    <strong>Quantity:</strong> {item.quantity || 0}
+                  </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                     <strong>Description:</strong> {item.description}
                   </Typography>
@@ -474,7 +641,6 @@ export default function Equipment() {
         </Grid>
       )}
 
-      {/* Table Pagination */}
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: { xs: 1, sm: 2 } }}>
         <TablePagination
           component="div"
@@ -492,7 +658,6 @@ export default function Equipment() {
         />
       </Box>
 
-      {/* Delete Dialog */}
       <Dialog
         open={open}
         onClose={handleClose}

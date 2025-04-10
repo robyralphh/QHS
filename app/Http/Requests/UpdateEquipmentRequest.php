@@ -3,32 +3,29 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateEquipmentRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
+    public function authorize()
     {
-        return true;
+        return true; // Adjust based on your authorization logic
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
-    public function rules(): array
+    public function rules()
     {
         return [
             'name' => 'sometimes|string|max:255',
-            'image' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'description' => 'sometimes|string|max:255',
-            'condition' => 'sometimes|string|max:255',
-            'laboratory_id' => 'sometimes|int',
-            'category_ids' => 'sometimes|array', // Array of category IDs
-            'category_ids.*' => 'integer|exists:categories,id', // Each ID must exist in categories table
+            'description' => 'sometimes|string|nullable',
+            'location' => 'sometimes|string|nullable',
+            'image' => [
+                'sometimes',
+                Rule::when($this->hasFile('image'), ['image', 'mimes:jpeg,png,jpg,gif', 'max:2048'], ['string']),
+            ],
+            'laboratory_id' => 'sometimes|exists:laboratory,id',
+            'quantity' => 'sometimes|integer|min:0',
+            'category_ids' => 'sometimes|array',
+            'category_ids.*' => 'exists:categories,id',
         ];
     }
 }
